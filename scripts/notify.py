@@ -40,13 +40,44 @@ class UrlPushNotify(typ.NamedTuple):
 class UrlLoginQrCodeNotify(typ.NamedTuple):
 
     def __call__(self, qrcode, reason: str) -> bool:
-        url = os.getenv("PUSH_QRCODE_URL")
+        sent = False
 
+        # 方式1：自定义 URL 推送
+        url = os.getenv("PUSH_QRCODE_URL")
         if url:
-            files = {
-                'file': ("qrcode.png", io.BytesIO(qrcode), 'image/png')
-            }
-            resp = requests.post(url, files=files, data={"reason": reason})
-            logging.info("推送二维码到URL")
-            return resp.status_code == 200
-        return False
+            try:
+                files = {'file': ("qrcode.png", io.BytesIO(qrcode), 'image/png')}
+                resp = requests.post(url, files=files, data={"reason": reason})
+                logging.info(f"推送二维码到自定义URL，状态码: {resp.status_code}")
+                sent = resp.status_code == 200
+            except Exception as e:
+                logging.warning(f"自定义URL推送失败: {e}")
+
+        # 方式2：PushPlus 推送（支持 HTML 图片内嵌）
+        pushplus_token = os.getenv("PUSHPLUS_TOKEN", "")
+        for token in [t.strip() for t in pushplus_token.split(",") if t.strip() and t.strip() != "xxxx"]:
+            try:
+                import base64
+                b64 = base64.b64encode(qrcode).decode()
+                content = (
+                    f"<p>原因：{reason}</p>"
+                    f"<p>请用国家电网 App 扫描下方二维码登录：</p>"
+                    f"<img src='data:image/png;base64,{b64}'/>"
+                )
+                resp = requests.post(
+                    "http://www.pushplus.plus/send",
+                    json={"token": token, "title": "国网登录二维码", "content": content, "template": "html"},
+                    timeout=15,
+                )
+                result = resp.json()
+                if result.get("code") == 200:
+                    logging.info("已通过 PushPlus 推送登录二维码")
+                    sent = True
+                else:
+                    logging.warning(f"PushPlus 推送失败: {result.get('msg')}")
+            except Exception as e:
+                logging.warning(f"PushPlus 推送异常: {e}")
+
+        if not sent:
+            logging.warning("二维码推送失败：未配置 PUSH_QRCODE_URL 或 PUSHPLUS_TOKEN，二维码已保存到 /data/login_qr_code.png")
+        return sent
