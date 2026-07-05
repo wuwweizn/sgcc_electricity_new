@@ -78,9 +78,10 @@ class DataFetcher:
     def _get_webdriver(self):
         chrome_options = webdriver.ChromeOptions()
 
-        # 基础参数（与原项目保持一致，避免多余参数干扰Chrome启动）
+        # 基础参数
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--disable-gpu-sandbox")   # 新版Chromium(120+)需要此参数
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--start-maximized")
 
@@ -109,11 +110,21 @@ class DataFetcher:
         })
 
         # 无头模式（Docker 环境）
-        # 使用 --headless=old 兼容模式，新版 Chromium 的 --headless=new 在某些容器中会崩溃
         if 'PYTHON_IN_DOCKER' in os.environ:
-            chrome_options.add_argument("--headless=old")
+            chrome_options.add_argument("--headless=new")
             chrome_options.binary_location = "/usr/bin/chromium"
             service = ChromeService(executable_path="/usr/bin/chromedriver")
+            # 诊断：打印 Chromium 版本，帮助排查崩溃原因
+            try:
+                import subprocess
+                ver = subprocess.run(["/usr/bin/chromium", "--version"],
+                                     capture_output=True, text=True, timeout=5)
+                logging.info(f"Chromium 版本: {ver.stdout.strip()}")
+                drv = subprocess.run(["/usr/bin/chromedriver", "--version"],
+                                     capture_output=True, text=True, timeout=5)
+                logging.info(f"ChromeDriver 版本: {drv.stdout.strip()}")
+            except Exception as e:
+                logging.warning(f"版本检测失败: {e}")
             def _setting_driver(driver):
                 # 显式设置窗口大小（解决无头模式下 --window-size 不生效的问题）
                 width, height = map(int, window_size.split(','))
