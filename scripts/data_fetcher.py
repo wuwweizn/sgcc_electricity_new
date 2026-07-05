@@ -78,18 +78,10 @@ class DataFetcher:
     def _get_webdriver(self):
         chrome_options = webdriver.ChromeOptions()
 
-        # 基础参数
+        # 基础参数（与原项目保持一致，避免多余参数干扰Chrome启动）
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--disable-dev-shm-usage")  # 绕过/dev/shm不足导致Chrome崩溃
-        chrome_options.add_argument("--disable-setuid-sandbox")
-        chrome_options.add_argument("--disable-extensions")
-        chrome_options.add_argument("--disable-background-networking")
-        chrome_options.add_argument("--disable-default-apps")
-        chrome_options.add_argument("--disable-sync")
-        chrome_options.add_argument("--metrics-recording-only")
-        chrome_options.add_argument("--mute-audio")
-        chrome_options.add_argument("--no-first-run")
+        chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--start-maximized")
 
         # 反检测核心参数（参考 ha-95598）
