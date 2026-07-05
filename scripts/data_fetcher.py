@@ -109,8 +109,9 @@ class DataFetcher:
         })
 
         # 无头模式（Docker 环境）
+        # 使用 --headless=old 兼容模式，新版 Chromium 的 --headless=new 在某些容器中会崩溃
         if 'PYTHON_IN_DOCKER' in os.environ:
-            chrome_options.add_argument("--headless=new")
+            chrome_options.add_argument("--headless=old")
             chrome_options.binary_location = "/usr/bin/chromium"
             service = ChromeService(executable_path="/usr/bin/chromedriver")
             def _setting_driver(driver):
