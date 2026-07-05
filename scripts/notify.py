@@ -1,6 +1,7 @@
 import typing as typ
 import os
 import logging
+import time
 import requests
 import io
 
@@ -39,46 +40,64 @@ class UrlPushNotify(typ.NamedTuple):
 
 class UrlLoginQrCodeNotify(typ.NamedTuple):
 
-    def __call__(self, qrcode, reason: str) -> bool:
+    def __call__(self, qrcode: bytes, reason: str) -> bool:
         sent = False
 
-        # 方式1：自定义 URL 推送
+        # 方式1：自定义 URL 推送（保留兼容）
         url = os.getenv("PUSH_QRCODE_URL")
         if url:
             try:
                 files = {'file': ("qrcode.png", io.BytesIO(qrcode), 'image/png')}
-                resp = requests.post(url, files=files, data={"reason": reason})
+                resp = requests.post(url, files=files, data={"reason": reason}, timeout=15)
                 logging.info(f"推送二维码到自定义URL，状态码: {resp.status_code}")
                 sent = resp.status_code == 200
             except Exception as e:
                 logging.warning(f"自定义URL推送失败: {e}")
 
-        # 方式2：PushPlus 推送（支持 HTML 图片内嵌）
-        pushplus_token = os.getenv("PUSHPLUS_TOKEN", "")
-        logging.info(f"PUSHPLUS_TOKEN 读取结果: {'已配置' if pushplus_token and pushplus_token.strip('x,') else '未配置或为默认值'}")
-        for token in [t.strip() for t in pushplus_token.split(",") if t.strip() and t.strip() != "xxxx"]:
+        # 方式2：HA 持久通知（图片内嵌，利用现有的 HASS_URL + HASS_TOKEN）
+        hass_url = os.getenv("HASS_URL", "").rstrip("/")
+        hass_token = os.getenv("HASS_TOKEN", "")
+        if hass_url and hass_token:
             try:
-                import base64
-                b64 = base64.b64encode(qrcode).decode()
-                content = (
-                    f"<p>原因：{reason}</p>"
-                    f"<p>请用国家电网 App 扫描下方二维码登录：</p>"
-                    f"<img src='data:image/png;base64,{b64}'/>"
+                # 保存图片到 /config/www/，使其可通过 {HASS_URL}/local/ 访问
+                www_dir = "/config/www"
+                os.makedirs(www_dir, exist_ok=True)
+                qr_path = os.path.join(www_dir, "sgcc_login_qr.png")
+                with open(qr_path, "wb") as f:
+                    f.write(qrcode)
+                logging.info(f"二维码已保存到 {qr_path}")
+
+                ts = int(time.time())
+                message = (
+                    f"**触发原因**: {reason}\n\n"
+                    f"请用**国家电网 App** 扫描下方二维码登录，"
+                    f"二维码将在约 3 分钟内过期：\n\n"
+                    f"![登录二维码](/local/sgcc_login_qr.png?t={ts})"
                 )
+                headers = {
+                    "Authorization": f"Bearer {hass_token}",
+                    "Content-Type": "application/json",
+                }
                 resp = requests.post(
-                    "http://www.pushplus.plus/send",
-                    json={"token": token, "title": "国网登录二维码", "content": content, "template": "html"},
-                    timeout=15,
+                    f"{hass_url}/api/services/persistent_notification/create",
+                    headers=headers,
+                    json={
+                        "title": "⚡ 国网需要扫码登录",
+                        "message": message,
+                        "notification_id": "sgcc_login_qrcode",
+                    },
+                    timeout=10,
                 )
-                result = resp.json()
-                if result.get("code") == 200:
-                    logging.info("已通过 PushPlus 推送登录二维码")
+                if resp.status_code in (200, 201):
+                    logging.info("✅ 已通过 HA 持久通知推送登录二维码，请打开 HA 界面查看通知（左下角铃铛）")
                     sent = True
                 else:
-                    logging.warning(f"PushPlus 推送失败: {result.get('msg')}")
+                    logging.warning(f"HA 通知发送失败，状态码: {resp.status_code}，响应: {resp.text[:200]}")
             except Exception as e:
-                logging.warning(f"PushPlus 推送异常: {e}")
+                logging.warning(f"HA 通知发送异常: {e}")
+        else:
+            logging.warning("HASS_URL 或 HASS_TOKEN 未配置，跳过 HA 通知")
 
         if not sent:
-            logging.warning("二维码推送失败：未配置 PUSH_QRCODE_URL 或 PUSHPLUS_TOKEN，二维码已保存到 /data/login_qr_code.png")
+            logging.warning("所有推送方式均失败，二维码已保存到 /data/login_qr_code.png")
         return sent
