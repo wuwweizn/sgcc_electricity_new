@@ -1,5 +1,5 @@
 name: "SGCC Electricity"
-version: "v1.8.1"
+version: "v1.8.2"
 slug: "sgcc_electricity"
 description: "获取国网电费数据的插件"
 url: "https://github.com/wuwweizn/sgcc_electricity_new"
@@ -11,6 +11,8 @@ startup: application
 boot: auto
 init: false
 image: "ghcr.io/wuwweizn/sgcc_electricity-{arch}"
+tmpfs:
+  - /dev/shm:rw,exec,size=256m
 map:
   # - addons:rw
   - config:rw
