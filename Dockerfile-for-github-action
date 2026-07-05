@@ -18,11 +18,28 @@ WORKDIR /app
 RUN apt-get --allow-releaseinfo-change update \
     && apt-get install -y --no-install-recommends \
         jq fonts-noto-cjk tzdata \
-        chromium chromium-driver \
+        wget unzip ca-certificates \
+        libglib2.0-0 libnss3 libatk1.0-0 libatk-bridge2.0-0 \
+        libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
+        libxfixes3 libxrandr2 libgbm1 \
+    && ( apt-get install -y --no-install-recommends libasound2 2>/dev/null || apt-get install -y --no-install-recommends libasound2t64 2>/dev/null || true ) \
     && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     && echo $TZ > /etc/timezone \
     && dpkg-reconfigure --frontend noninteractive tzdata \
-    && rm -rf /var/lib/apt/lists/*  \
+    && CHROME_VER="120.0.6099.109" \
+    && if [ "$TARGETARCH" = "arm64" ]; then \
+           CHROME_ARCH="linux-arm64"; CHROME_DIR="chrome-linux-arm64"; DRIVER_DIR="chromedriver-linux-arm64"; \
+       else \
+           CHROME_ARCH="linux64"; CHROME_DIR="chrome-linux64"; DRIVER_DIR="chromedriver-linux64"; \
+       fi \
+    && wget -q "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VER}/${CHROME_ARCH}/${CHROME_DIR}.zip" -O /tmp/chrome.zip \
+    && wget -q "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VER}/${CHROME_ARCH}/${DRIVER_DIR}.zip" -O /tmp/chromedriver.zip \
+    && unzip -q /tmp/chrome.zip -d /opt/ \
+    && unzip -q /tmp/chromedriver.zip -d /opt/ \
+    && ln -sf /opt/${CHROME_DIR}/chrome /usr/bin/chromium \
+    && ln -sf /opt/${DRIVER_DIR}/chromedriver /usr/bin/chromedriver \
+    && rm -f /tmp/chrome.zip /tmp/chromedriver.zip \
+    && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
 COPY ./requirements.txt /tmp/requirements.txt
