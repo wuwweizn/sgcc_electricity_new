@@ -55,6 +55,7 @@ class UrlLoginQrCodeNotify(typ.NamedTuple):
 
         # 方式2：PushPlus 推送（支持 HTML 图片内嵌）
         pushplus_token = os.getenv("PUSHPLUS_TOKEN", "")
+        logging.info(f"PUSHPLUS_TOKEN 读取结果: {'已配置' if pushplus_token and pushplus_token.strip('x,') else '未配置或为默认值'}")
         for token in [t.strip() for t in pushplus_token.split(",") if t.strip() and t.strip() != "xxxx"]:
             try:
                 import base64
