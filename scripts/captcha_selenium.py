@@ -490,11 +490,12 @@ def _detect_captcha_type_fallback(driver: WebDriver) -> str:
 
 
 def _wait_for_captcha(driver: WebDriver, selectors: dict, timeout: int) -> bool:
-    # 等待任一已知验证码容器出现
+    # 等待任一已知验证码容器出现且可见
+    # 修复 Issue #267：presence_of 会匹配 top:-1000000px 的隐藏预加载元素，改为 visibility_of
     for sel in _WIDGET_SELECTORS:
         try:
             WebDriverWait(driver, timeout).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, sel))
+                EC.visibility_of_element_located((By.CSS_SELECTOR, sel))
             )
             return True
         except Exception:
