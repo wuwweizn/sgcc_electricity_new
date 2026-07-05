@@ -83,7 +83,6 @@ class DataFetcher:
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--disable-dev-shm-usage")  # 绕过/dev/shm不足导致Chrome崩溃
         chrome_options.add_argument("--disable-setuid-sandbox")
-        chrome_options.add_argument("--no-zygote")              # 防止zygote进程异常退出
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--disable-background-networking")
         chrome_options.add_argument("--disable-default-apps")
