@@ -44,6 +44,8 @@ jobs:
           file: Dockerfile-for-github-action
           platforms: linux/amd64
           push: true
+          provenance: false
+          sbom: false
           build-args: VERSION=${{ steps.get_version.outputs.version }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/sgcc_electricity-amd64:latest
@@ -56,6 +58,8 @@ jobs:
           file: Dockerfile-for-github-action
           platforms: linux/arm64
           push: true
+          provenance: false
+          sbom: false
           build-args: VERSION=${{ steps.get_version.outputs.version }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/sgcc_electricity-aarch64:latest
